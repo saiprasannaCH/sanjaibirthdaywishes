@@ -1,0 +1,28 @@
+{
+  "name": "sanjai-birthday-experience",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@lottiefiles/dotlottie-vue": "^0.11.19",
+    "@tsparticles/slim": "^4.3.1",
+    "@tsparticles/vue3": "^4.3.1",
+    "canvas-confetti": "^1.9.4",
+    "gsap": "^3.15.0",
+    "howler": "^2.2.4",
+    "vue": "^3.5.39"
+  },
+  "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/howler": "^2.2.13",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.4",
+    "vue-tsc": "^3.3.7"
+  }
+}
