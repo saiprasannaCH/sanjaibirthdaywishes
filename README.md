@@ -1,43 +1,39 @@
-# Sanjai Birthday Experience
+# Sanjai Birthday Wishes
 
-Soft black + soft ivory interactive birthday journey for Sanjai.
+Interactive birthday site for Sanjai — works on Android and iPhone browsers.
 
-## Unlock
+## Live unlock
 
-The experience stays locked with a countdown until **July 22, 2026 at 12:00 AM** (local time).
+- **Public link:** countdown until **July 22, 2026, 12:00 AM** (device local time), then the full experience opens.
+- **Early test link:** add `?enter=1` to the URL (for you to test before the birthday). Do not share that with Sanjai if you want the surprise locked.
 
-- While developing (`npm run dev`): a **Preview enter (dev only)** button appears so you can test early.
-- In production builds (`npm run build`): that button is removed. Visitors can only enter after midnight on July 22.
+Example: `https://YOUR-URL/?enter=1`
 
-## 10 screens
+## Screens
 
-1. Envelope / countdown lock
-2. Runaway No
-3. Little truths
-4. Pop balloons
-5. Photo reel
-6. Memories
-7. Red-rose bouquet + 2 sunflowers
-8. Blowable birthday cake for “sleepy guy”
-9. Typewriter letter
-10. Tap the stars
-11. Finale
+1. Envelope / countdown  
+2. Runaway No  
+3. Little truths  
+4. Pop balloons  
+5. Photo reel  
+6. Memories  
+7. Bouquet  
+8. Cake for “sleepy guy”  
+9. Letter  
+10. Stars  
+11. Finale  
 
-Tone is romantic and warm, without using the word “love”.
-
-## Personalize
-
-Edit `src/content.ts` for wishes, memories, letter, bouquet message, and photo captions.
-
-Add photos to:
-
-```
-public/photos/1.jpg … 6.jpg
-```
-
-## Run
+## Develop
 
 ```bash
 npm install
 npm run dev
+```
+
+## Deploy
+
+This repo deploys to GitHub Pages as **sanjaibirthdaywishes** via `.github/workflows/deploy.yml`.
+
+```bash
+npm run build
 ```
