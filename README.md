@@ -4,10 +4,8 @@ Interactive birthday site for Sanjai — works on Android and iPhone browsers.
 
 ## Live unlock
 
-- **Public link:** countdown until **July 22, 2026, 12:00 AM** (device local time), then the full experience opens.
-- **Early test link:** add `?enter=1` to the URL (for you to test before the birthday). Do not share that with Sanjai if you want the surprise locked.
-
-Example: `https://YOUR-URL/?enter=1`
+- **Public link:** https://saiprasannach.github.io/sanjaibirthdaywishes/ — countdown until **July 22, 2026, 12:00 AM** (device local time), then the full experience opens.
+- **Early test / preview:** https://saiprasannach.github.io/sanjaibirthdaywishes/?enter=1 — do not share this with Sanjai if you want the surprise locked.
 
 ## Screens
 
