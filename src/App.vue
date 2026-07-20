@@ -82,8 +82,10 @@ const savedCustomMemory = ref('');
 const letterText = ref('');
 const revealedStars = ref<number[]>([]);
 const photoBroken = ref<Record<number, boolean>>({});
-/** `ember` = black + orange · `pastel` = lavender + mint */
-const theme = ref<'ember' | 'pastel'>('ember');
+/** Themes: ember · pastel · blush · noir · midnight (navy+gold) · rose (cream+rose) */
+type ThemeId = 'ember' | 'pastel' | 'blush' | 'noir' | 'midnight' | 'rose';
+const theme = ref<ThemeId>('ember');
+const THEME_IDS: ThemeId[] = ['ember', 'pastel', 'blush', 'noir', 'midnight', 'rose'];
 
 const trapArenaRef = ref<HTMLElement | null>(null);
 const noButtonRef = ref<HTMLButtonElement | null>(null);
@@ -95,13 +97,37 @@ const balloons = ref<WishBalloon[]>(
   })),
 );
 
-const pastelBalloonTints = ['#c9b8e8', '#9b7bb8', '#7a5f9a', '#a8d9b8', '#7eb89a'];
-const emberBalloonTints = ['#e8a05a', '#e87820', '#c45f10', '#e08a30', '#d97828'];
+const balloonTintsByTheme: Record<ThemeId, string[]> = {
+  pastel: ['#c9b8e8', '#9b7bb8', '#7a5f9a', '#a8d9b8', '#7eb89a'],
+  ember: ['#e8a05a', '#e87820', '#c45f10', '#e08a30', '#d97828'],
+  blush: ['#ffd0dc', '#ff8fab', '#f0638a', '#ffb4c8', '#ff9eb5'],
+  noir: ['#d4c4f0', '#b8a0d8', '#9b7bb8', '#7a5f9a', '#c9b8e8'],
+  midnight: ['#f0d78c', '#d4a017', '#b8860b', '#c9a227', '#e8c547'],
+  rose: ['#e8b4b8', '#c97b84', '#a85d66', '#d4a0a6', '#b87078'],
+};
+
+const particleColorsByTheme: Record<ThemeId, string[]> = {
+  ember: ['#ffffff', '#e8a05a', '#e87820', '#c45f10'],
+  pastel: ['#ffffff', '#e8dff5', '#c9b8e8', '#9b7bb8', '#a8d9b8'],
+  blush: ['#ffffff', '#ffe4ec', '#ffd0dc', '#ff8fab', '#f0638a'],
+  noir: ['#ffffff', '#e8dff5', '#d4c4f0', '#b8a0d8', '#9b7bb8'],
+  midnight: ['#ffffff', '#f5e6b8', '#d4a017', '#b8860b', '#7a91c4'],
+  rose: ['#ffffff', '#f7f1ea', '#e8b4b8', '#c97b84', '#a85d66'],
+};
+
+const confettiColorsByTheme: Record<ThemeId, string[]> = {
+  ember: ['#ffffff', '#e8a05a', '#e87820', '#c45f10', '#e08a30'],
+  pastel: ['#ffffff', '#e8dff5', '#c9b8e8', '#9b7bb8', '#a8d9b8', '#7eb89a', '#b8e6c8'],
+  blush: ['#ffffff', '#fff5f8', '#ffd0dc', '#ff8fab', '#f0638a', '#ffb4c8'],
+  noir: ['#ffffff', '#e8dff5', '#d4c4f0', '#b8a0d8', '#9b7bb8', '#7a5f9a'],
+  midnight: ['#ffffff', '#f5e6b8', '#d4a017', '#b8860b', '#c9a227', '#3d5a80'],
+  rose: ['#ffffff', '#f7f1ea', '#e8d5c4', '#c97b84', '#a85d66', '#d4a0a6'],
+};
 
 watch(
   theme,
   (next) => {
-    const tints = next === 'ember' ? emberBalloonTints : pastelBalloonTints;
+    const tints = balloonTintsByTheme[next];
     balloons.value.forEach((balloon, index) => {
       balloon.tint = tints[index % tints.length];
     });
@@ -120,10 +146,12 @@ const allStarsRevealed = computed(() => revealedStars.value.length === constella
 const canAdvanceReasons = computed(() => reasonIndex.value >= reasonCards.length - 1);
 const canAdvanceMemories = computed(() => memoryIndex.value >= writtenMemories.length - 1);
 const canGoBack = computed(() => screenIndex.value > 0);
-/** Cake screen always stays lavender/mint */
+/** Cake screen always stays lavender + mint */
 const shellThemeClass = computed(() =>
-  screen.value === 'cake' || theme.value === 'pastel' ? 'theme-pastel' : 'theme-ember',
+  screen.value === 'cake' ? 'theme-pastel' : `theme-${theme.value}`,
 );
+
+const activePalette = computed(() => (screen.value === 'cake' ? 'pastel' : theme.value));
 
 const isUnlocked = computed(() => earlyPreview.value || now.value >= UNLOCK_AT);
 
@@ -149,12 +177,7 @@ const particleOptions = computed<ISourceOptions>(() => ({
   background: { color: 'transparent' },
   particles: {
     number: { value: 32, density: { enable: true } },
-    color: {
-      value:
-        theme.value === 'ember' && screen.value !== 'cake'
-          ? ['#ffffff', '#e8a05a', '#e87820', '#c45f10']
-          : ['#ffffff', '#e8dff5', '#c9b8e8', '#9b7bb8', '#a8d9b8'],
-    },
+    color: { value: particleColorsByTheme[activePalette.value] },
     shape: { type: 'circle' },
     opacity: {
       value: { min: 0.15, max: 0.55 },
@@ -173,19 +196,16 @@ const particleOptions = computed<ISourceOptions>(() => ({
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 function softConfetti(x = 0.5, y = 0.45) {
-  const useEmber = theme.value === 'ember' && screen.value !== 'cake';
   confetti({
     particleCount: 48,
     spread: 64,
     origin: { x, y },
-    colors: useEmber
-      ? ['#ffffff', '#e8a05a', '#e87820', '#c45f10', '#e08a30']
-      : ['#ffffff', '#e8dff5', '#c9b8e8', '#9b7bb8', '#a8d9b8', '#7eb89a', '#b8e6c8'],
+    colors: confettiColorsByTheme[activePalette.value],
     zIndex: 50,
   });
 }
 
-function setTheme(next: 'ember' | 'pastel') {
+function setTheme(next: ThemeId) {
   theme.value = next;
   try {
     localStorage.setItem('sanjai-theme', next);
@@ -470,7 +490,7 @@ onMounted(() => {
   applyUrlUnlock();
   try {
     const saved = localStorage.getItem('sanjai-theme');
-    if (saved === 'ember' || saved === 'pastel') theme.value = saved;
+    if (saved && THEME_IDS.includes(saved as ThemeId)) theme.value = saved as ThemeId;
   } catch {
     /* ignore */
   }
@@ -525,6 +545,38 @@ onUnmounted(() => {
         aria-label="Lavender and mint theme"
         title="Lavender & mint"
         @click="setTheme('pastel')"
+      ></button>
+      <button
+        class="theme-ball theme-ball-blush"
+        type="button"
+        :class="{ active: theme === 'blush' }"
+        aria-label="White and baby pink theme"
+        title="White & baby pink"
+        @click="setTheme('blush')"
+      ></button>
+      <button
+        class="theme-ball theme-ball-noir"
+        type="button"
+        :class="{ active: theme === 'noir' }"
+        aria-label="Lavender and black theme"
+        title="Lavender & black"
+        @click="setTheme('noir')"
+      ></button>
+      <button
+        class="theme-ball theme-ball-midnight"
+        type="button"
+        :class="{ active: theme === 'midnight' }"
+        aria-label="Navy and gold theme"
+        title="Navy & gold"
+        @click="setTheme('midnight')"
+      ></button>
+      <button
+        class="theme-ball theme-ball-rose"
+        type="button"
+        :class="{ active: theme === 'rose' }"
+        aria-label="Cream and rose theme"
+        title="Cream & rose"
+        @click="setTheme('rose')"
       ></button>
     </div>
 

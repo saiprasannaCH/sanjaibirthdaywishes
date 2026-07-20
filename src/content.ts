@@ -96,9 +96,14 @@ export const balloonWishes = [
 
 export const reasonCards = [
   { emoji: '😊', title: 'Your innocent face', text: 'Looks so cute..but are not innocent at all.' },
+  {
+    emoji: '☺️',
+    title: 'Your smile',
+    text: 'When you smile, you look even more handsome and smart — and that dimple on your face is so cute. Just keep smiling like that. Aha… I think someone is smiling by reading this. Hahaha.',
+  },
   { emoji: '🎧', title: 'Your vibe', text: 'Calm, bright and always comforting.Thats what i love about you.' },
   { emoji: '🌿', title: 'Your presence', text: 'My cheeks will start hurting cz, i will be keep smiling when i am with you :)' },
-  { emoji: '☀️', title: 'Your energy', text: 'Soft enough to soothe, strong enough to inspire.' },
+  { emoji: '☀️', title: 'Your energy', text: 'You\'re always so energetic — and when you\'re beside someone, they start feeling that energy too.' },
 ];
 
 export const constellationNotes = [
