@@ -1,33 +1,37 @@
 /** Edit this file to personalize Sanjai's birthday experience. */
 
+/** Public assets must respect Vite base (GitHub Pages lives under /sanjaibirthdaywishes/) */
+const asset = (path: string) =>
+  `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
+
 export const photoFrames = [
   {
-    src: '/photos/1.jpg',
+    src: asset('photos/1.jpg'),
     caption: 'That day still makes me smile.',
     fallback: 'Memory 01',
   },
   {
-    src: '/photos/2.jpg',
+    src: asset('photos/2.jpg'),
     caption: 'A frame I keep coming back to.',
     fallback: 'Memory 02',
   },
   {
-    src: '/photos/3.jpg',
+    src: asset('photos/3.jpg'),
     caption: 'Soft light, quieter joy.',
     fallback: 'Memory 03',
   },
   {
-    src: '/photos/4.jpg',
+    src: asset('photos/4.jpg'),
     caption: 'Proof that ordinary moments can feel special.',
     fallback: 'Memory 04',
   },
   {
-    src: '/photos/5.jpg',
+    src: asset('photos/5.jpg'),
     caption: 'A little piece of our timeline.',
     fallback: 'Memory 05',
   },
   {
-    src: '/photos/6.jpg',
+    src: asset('photos/6.jpg'),
     caption: 'For the days that felt easy with you around.',
     fallback: 'Memory 06',
   },
@@ -118,7 +122,7 @@ export const letterLines = [
   '— someone who thinks of you more often than you know',
 ];
 
-export const bouquetImage = '/photos/bouquet.jpg';
+export const bouquetImage = asset('photos/bouquet.jpg');
 
 export const bouquetMessage =''
 export const bouquetMeaning = [
