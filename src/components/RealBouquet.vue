@@ -42,10 +42,10 @@ import { bouquetImage } from '../content';
   z-index: 1;
   overflow: hidden;
   border-radius: 1.35rem;
-  border: 1px solid rgba(255, 154, 60, 0.28);
+  border: 1px solid var(--stroke);
   box-shadow:
-    0 24px 50px rgba(0, 0, 0, 0.45),
-    0 0 40px rgba(255, 154, 60, 0.18);
+    0 24px 50px rgba(0, 0, 0, 0.35),
+    0 0 40px var(--glow);
   animation: float 5s ease-in-out infinite;
   transform-origin: center bottom;
 }

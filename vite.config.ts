@@ -1,12 +1,13 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
-/** GitHub Pages project site: /sanjaibirthdaywishes/ — Vercel/root uses '/' */
-const base =
-  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
-    ?.VITE_BASE || '/';
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  /** GitHub Pages: /sanjaibirthdaywishes/ — local/Vercel: / */
+  const base = env.VITE_BASE || '/';
 
-export default defineConfig({
-  plugins: [vue()],
-  base,
+  return {
+    plugins: [vue()],
+    base,
+  };
 });

@@ -18,7 +18,7 @@ const topPositions = Array.from({ length: topBulbs }, (_, i) => {
       <path
         d="M6 28 Q50 2 94 28"
         fill="none"
-        stroke="rgba(255,154,60,0.35)"
+        stroke="currentColor"
         stroke-width="0.35"
       />
     </svg>
@@ -61,6 +61,7 @@ const topPositions = Array.from({ length: topBulbs }, (_, i) => {
   z-index: 1;
   pointer-events: none;
   overflow: hidden;
+  color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .arch-wire {
@@ -80,21 +81,26 @@ const topPositions = Array.from({ length: topBulbs }, (_, i) => {
 }
 
 .strand-left {
-  left: clamp(0.4rem, 3vw, 1.6rem);
+  left: 0.35rem;
 }
 
 .strand-right {
-  right: clamp(0.4rem, 3vw, 1.6rem);
+  right: 0.35rem;
 }
 
 .strand-line {
   position: absolute;
-  left: 50%;
   top: 6%;
-  bottom: 4%;
-  width: 1px;
-  background: linear-gradient(180deg, rgba(255, 154, 60, 0.55), rgba(255, 154, 60, 0.06));
-  transform: translateX(-50%);
+  left: 50%;
+  width: 2px;
+  height: 88%;
+  margin-left: -1px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 55%, transparent),
+    color-mix(in srgb, var(--accent) 6%, transparent)
+  );
+  border-radius: 999px;
 }
 
 .strand-top {
@@ -110,11 +116,11 @@ const topPositions = Array.from({ length: topBulbs }, (_, i) => {
   height: 0.9rem;
   margin-left: -0.36rem;
   border-radius: 50% 50% 45% 45%;
-  background: radial-gradient(circle at 35% 30%, #fff4e0, #ff9a3c 45%, #e8721a 100%);
+  background: radial-gradient(circle at 35% 30%, #fff8f0, var(--accent) 45%, var(--accent-deep) 100%);
   box-shadow:
-    0 0 8px rgba(255, 192, 120, 0.95),
-    0 0 18px rgba(255, 154, 60, 0.65),
-    0 0 32px rgba(232, 114, 26, 0.35);
+    0 0 8px color-mix(in srgb, var(--accent-soft) 95%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 65%, transparent),
+    0 0 32px var(--glow);
   animation: twinkle 2.4s ease-in-out var(--delay) infinite;
 }
 

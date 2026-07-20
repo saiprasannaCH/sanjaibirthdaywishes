@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { ISourceOptions } from '@tsparticles/engine';
 import confetti from 'canvas-confetti';
 import { gsap } from 'gsap';
@@ -17,9 +17,13 @@ import {
   reasonCards,
   writtenMemories,
 } from './content';
+import {
+  RECIPIENT_NAME,
+  UNLOCK_AT,
+  UNLOCK_DATE_LABEL,
+  UNLOCK_TIME_LABEL,
+} from './config';
 
-/** Opens at local midnight on July 22, 2026 */
-const UNLOCK_AT = new Date(2026, 6, 22, 0, 0, 0, 0).getTime();
 /** Preview button only in local `npm run dev` */
 const SHOW_PREVIEW_ENTER = import.meta.env.DEV;
 
@@ -78,6 +82,8 @@ const savedCustomMemory = ref('');
 const letterText = ref('');
 const revealedStars = ref<number[]>([]);
 const photoBroken = ref<Record<number, boolean>>({});
+/** `ember` = black + orange · `pastel` = lavender + mint */
+const theme = ref<'ember' | 'pastel'>('pastel');
 
 const trapArenaRef = ref<HTMLElement | null>(null);
 const noButtonRef = ref<HTMLButtonElement | null>(null);
@@ -87,6 +93,20 @@ const balloons = ref<WishBalloon[]>(
     ...wish,
     popped: false,
   })),
+);
+
+const pastelBalloonTints = ['#c9b8e8', '#9b7bb8', '#7a5f9a', '#a8d9b8', '#7eb89a'];
+const emberBalloonTints = ['#ffc078', '#ff9a3c', '#e8721a', '#ffb347', '#ffa05a'];
+
+watch(
+  theme,
+  (next) => {
+    const tints = next === 'ember' ? emberBalloonTints : pastelBalloonTints;
+    balloons.value.forEach((balloon, index) => {
+      balloon.tint = tints[index % tints.length];
+    });
+  },
+  { immediate: true },
 );
 
 let music: Howl | null = null;
@@ -99,6 +119,11 @@ const allBalloonsPopped = computed(() => poppedCount.value === balloons.value.le
 const allStarsRevealed = computed(() => revealedStars.value.length === constellationNotes.length);
 const canAdvanceReasons = computed(() => reasonIndex.value >= reasonCards.length - 1);
 const canAdvanceMemories = computed(() => memoryIndex.value >= writtenMemories.length - 1);
+const canGoBack = computed(() => screenIndex.value > 0);
+/** Cake screen always stays lavender/mint */
+const shellThemeClass = computed(() =>
+  screen.value === 'cake' || theme.value === 'pastel' ? 'theme-pastel' : 'theme-ember',
+);
 
 const isUnlocked = computed(() => earlyPreview.value || now.value >= UNLOCK_AT);
 
@@ -118,13 +143,18 @@ const countdown = computed(() => {
   };
 });
 
-const particleOptions: ISourceOptions = {
+const particleOptions = computed<ISourceOptions>(() => ({
   fullScreen: { enable: false },
   detectRetina: true,
   background: { color: 'transparent' },
   particles: {
     number: { value: 32, density: { enable: true } },
-    color: { value: ['#ffffff', '#ffc078', '#ff9a3c', '#e8721a'] },
+    color: {
+      value:
+        theme.value === 'ember' && screen.value !== 'cake'
+          ? ['#ffffff', '#ffc078', '#ff9a3c', '#e8721a']
+          : ['#ffffff', '#e8dff5', '#c9b8e8', '#9b7bb8', '#a8d9b8'],
+    },
     shape: { type: 'circle' },
     opacity: {
       value: { min: 0.15, max: 0.55 },
@@ -138,18 +168,30 @@ const particleOptions: ISourceOptions = {
       outModes: { default: 'out' },
     },
   },
-};
+}));
 
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 function softConfetti(x = 0.5, y = 0.45) {
+  const useEmber = theme.value === 'ember' && screen.value !== 'cake';
   confetti({
     particleCount: 48,
     spread: 64,
     origin: { x, y },
-    colors: ['#ffffff', '#ffc078', '#ff9a3c', '#e8721a', '#ffb347'],
+    colors: useEmber
+      ? ['#ffffff', '#ffc078', '#ff9a3c', '#e8721a', '#ffb347']
+      : ['#ffffff', '#e8dff5', '#c9b8e8', '#9b7bb8', '#a8d9b8', '#7eb89a', '#b8e6c8'],
     zIndex: 50,
   });
+}
+
+function setTheme(next: 'ember' | 'pastel') {
+  theme.value = next;
+  try {
+    localStorage.setItem('sanjai-theme', next);
+  } catch {
+    /* ignore */
+  }
 }
 
 function initMusic() {
@@ -229,7 +271,6 @@ async function goTo(next: Screen) {
   }
 
   if (next === 'reasons') {
-    reasonIndex.value = 0;
     gsap.fromTo('.reason-card', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' });
     return;
   }
@@ -244,13 +285,11 @@ async function goTo(next: Screen) {
   }
 
   if (next === 'photos') {
-    activePhoto.value = 0;
     gsap.fromTo('.photo-stage', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' });
     return;
   }
 
   if (next === 'memories') {
-    memoryIndex.value = 0;
     gsap.fromTo('.memory-paper', { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.65, ease: 'power3.out' });
     return;
   }
@@ -274,7 +313,6 @@ async function goTo(next: Screen) {
   }
 
   if (next === 'constellation') {
-    revealedStars.value = [];
     gsap.fromTo('.star-field', { opacity: 0 }, { opacity: 1, duration: 0.7, ease: 'power2.out' });
     return;
   }
@@ -287,6 +325,12 @@ async function goTo(next: Screen) {
       { opacity: 1, y: 0, scale: 1, duration: 0.85, ease: 'power3.out' },
     );
   }
+}
+
+function goBack() {
+  const idx = screenIndex.value;
+  if (idx <= 0) return;
+  void goTo(screenOrder[idx - 1]);
 }
 
 function continueFromIntro() {
@@ -328,7 +372,7 @@ function moveNoButton(event?: MouseEvent | TouchEvent) {
     'Only YES works today',
     'The No keeps running',
     'Be sweet… tap YES',
-    'Nope — try the orange one',
+    'Nope — try the other one',
   ];
   trapPrompt.value = teases[Math.floor(Math.random() * teases.length)];
 }
@@ -355,10 +399,18 @@ function popBalloon(balloon: WishBalloon, event: MouseEvent) {
 
 function nextPhoto() {
   activePhoto.value = (activePhoto.value + 1) % photoFrames.length;
+  gsap.fromTo('.polaroid', { opacity: 0.4, x: 18 }, { opacity: 1, x: 0, duration: 0.35, ease: 'power2.out' });
 }
 
 function prevPhoto() {
   activePhoto.value = (activePhoto.value - 1 + photoFrames.length) % photoFrames.length;
+  gsap.fromTo('.polaroid', { opacity: 0.4, x: -18 }, { opacity: 1, x: 0, duration: 0.35, ease: 'power2.out' });
+}
+
+function goToPhoto(index: number) {
+  if (index === activePhoto.value) return;
+  activePhoto.value = index;
+  gsap.fromTo('.polaroid', { opacity: 0.35, scale: 0.97 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' });
 }
 
 function onPhotoError(index: number) {
@@ -369,6 +421,13 @@ function nextMemory() {
   if (memoryIndex.value < writtenMemories.length - 1) {
     memoryIndex.value += 1;
     gsap.fromTo('.memory-entry', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' });
+  }
+}
+
+function prevMemory() {
+  if (memoryIndex.value > 0) {
+    memoryIndex.value -= 1;
+    gsap.fromTo('.memory-entry', { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power3.out' });
   }
 }
 
@@ -409,6 +468,12 @@ async function blowCandles() {
 
 onMounted(() => {
   applyUrlUnlock();
+  try {
+    const saved = localStorage.getItem('sanjai-theme');
+    if (saved === 'ember' || saved === 'pastel') theme.value = saved;
+  } catch {
+    /* ignore */
+  }
 
   countdownTimer = window.setInterval(() => {
     now.value = Date.now();
@@ -433,7 +498,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'pastel-cake-theme': screen === 'cake' }">
+  <div class="app-shell" :class="shellThemeClass">
     <vue-particles
       v-show="screen !== 'cake'"
       id="birthday-particles"
@@ -443,6 +508,34 @@ onUnmounted(() => {
     <div class="blush blush-a" aria-hidden="true"></div>
     <div class="blush blush-b" aria-hidden="true"></div>
     <div class="soft-grid" aria-hidden="true"></div>
+
+    <div class="theme-balls" role="group" aria-label="Theme colors">
+      <button
+        class="theme-ball theme-ball-ember"
+        type="button"
+        :class="{ active: theme === 'ember' }"
+        aria-label="Black and orange theme"
+        title="Black & orange"
+        @click="setTheme('ember')"
+      ></button>
+      <button
+        class="theme-ball theme-ball-pastel"
+        type="button"
+        :class="{ active: theme === 'pastel' }"
+        aria-label="Lavender and mint theme"
+        title="Lavender & mint"
+        @click="setTheme('pastel')"
+      ></button>
+    </div>
+
+    <button
+      v-if="canGoBack"
+      class="back-chip"
+      type="button"
+      @click="goBack"
+    >
+      ← Back
+    </button>
 
     <button
       v-if="screen !== 'intro' || introPhase === 'ready'"
@@ -463,13 +556,13 @@ onUnmounted(() => {
         <p class="kicker intro-title-line">A private little surprise</p>
         <h1 class="intro-heading">
           <span class="intro-title-line soft">For</span>
-          <span class="intro-title-line name">Sanjai</span>
+          <span class="intro-title-line name">{{ RECIPIENT_NAME }}</span>
         </h1>
         <p class="lede intro-title-line">
           {{
             isUnlocked
               ? 'Tap the seal. Let the day unfold, one soft screen at a time.'
-              : 'This surprise unlocks on July 22 at 12:00 AM.'
+              : `This surprise unlocks on ${UNLOCK_DATE_LABEL} at ${UNLOCK_TIME_LABEL}.`
           }}
         </p>
       </div>
@@ -494,7 +587,7 @@ onUnmounted(() => {
             <span>Secs</span>
           </div>
         </div>
-        <p class="countdown-note">Opens automatically at midnight on July 22.</p>
+        <p class="countdown-note">Opens automatically at {{ UNLOCK_TIME_LABEL }} on {{ UNLOCK_DATE_LABEL }}.</p>
 
         <button
           v-if="SHOW_PREVIEW_ENTER"
@@ -520,7 +613,7 @@ onUnmounted(() => {
           <div class="seal">♡</div>
           <div class="letter-card" aria-hidden="true">
             <p>Happy Birthday</p>
-            <strong>Sanjai</strong>
+            <strong>{{ RECIPIENT_NAME }}</strong>
             <span>something soft, made for you</span>
           </div>
         </button>
@@ -616,16 +709,17 @@ onUnmounted(() => {
       <header class="section-head">
         <p class="kicker">Photo reel · {{ activePhoto + 1 }}/{{ photoFrames.length }}</p>
         <h2>Frames that feel like home</h2>
-        <p class="lede compact">Add your pictures in <code>public/photos</code> as 1.jpg … 6.jpg</p>
+        <p class="lede compact">Swipe or tap the arrows · add pictures in <code>public/photos</code></p>
       </header>
 
       <div class="photo-stage">
-        <button class="nav-chip" type="button" @click="prevPhoto">←</button>
+        <button class="nav-chip" type="button" aria-label="Previous photo" @click.stop="prevPhoto">←</button>
 
         <figure class="polaroid">
           <div class="photo-frame">
             <img
               v-if="!photoBroken[activePhoto]"
+              :key="activePhoto"
               :src="photoFrames[activePhoto].src"
               :alt="photoFrames[activePhoto].caption"
               @error="onPhotoError(activePhoto)"
@@ -638,11 +732,24 @@ onUnmounted(() => {
           <figcaption>{{ photoFrames[activePhoto].caption }}</figcaption>
         </figure>
 
-        <button class="nav-chip" type="button" @click="nextPhoto">→</button>
+        <button class="nav-chip" type="button" aria-label="Next photo" @click.stop="nextPhoto">→</button>
       </div>
 
-      <div class="photo-dots" aria-hidden="true">
-        <span v-for="(_, i) in photoFrames" :key="i" :class="{ on: i === activePhoto }"></span>
+      <div class="photo-nav-mobile">
+        <button class="nav-chip" type="button" @click.stop="prevPhoto">← Prev</button>
+        <button class="nav-chip" type="button" @click.stop="nextPhoto">Next →</button>
+      </div>
+
+      <div class="photo-dots">
+        <button
+          v-for="(_, i) in photoFrames"
+          :key="i"
+          type="button"
+          class="photo-dot"
+          :class="{ on: i === activePhoto }"
+          :aria-label="`Photo ${i + 1}`"
+          @click="goToPhoto(i)"
+        ></button>
       </div>
 
       <button class="cta" type="button" @click="goTo('memories')">Read the memories</button>
@@ -676,6 +783,14 @@ onUnmounted(() => {
       </div>
 
       <div class="row-actions">
+        <button
+          v-if="memoryIndex > 0"
+          class="ghost-btn"
+          type="button"
+          @click="prevMemory"
+        >
+          ← Prev memory
+        </button>
         <button v-if="!canAdvanceMemories" class="cta" type="button" @click="nextMemory">Next memory</button>
         <button v-else class="cta" type="button" @click="goTo('bouquet')">A bouquet for you</button>
       </div>
@@ -756,9 +871,9 @@ onUnmounted(() => {
     <section v-else class="screen finale-screen">
       <div class="finale-panel glass">
         <p class="kicker">Last frame</p>
-        <h2>Happy Birthday, Sanjai</h2>
+        <h2>Happy Birthday, {{ RECIPIENT_NAME }}</h2>
         <p class="lede">
-          Happy Birthday, Sanjai! 🎉
+          Happy Birthday, {{ RECIPIENT_NAME }}! 🎉
 
 I don't think you realize how rare a person you are. In a world where people often judge, misunderstand, or pretend to be someone they're not, you choose to be genuine. You're kind, caring, honest, and you always try to see the good in people. That's something I truly admire about you.
 
@@ -768,8 +883,8 @@ On your special day, I just want to say thank you for being exactly who you are.
 
 Keep smiling, keep being the amazing person you are, and may all your dreams come true.
 
-Happy Birthday once again, Sanjai Have the most wonderful year ahead. 🤍         </p>
-        <p class="stamp">HBD Sanjai ♡</p>
+Happy Birthday once again, {{ RECIPIENT_NAME }} Have the most wonderful year ahead. 🤍         </p>
+        <p class="stamp">HBD {{ RECIPIENT_NAME }} ♡</p>
         <div class="emoji-row" aria-hidden="true">
           <span>🎀</span><span>🌸</span><span>✨</span><span>🤍</span><span>💌</span>
         </div>
