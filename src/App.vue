@@ -83,7 +83,7 @@ const letterText = ref('');
 const revealedStars = ref<number[]>([]);
 const photoBroken = ref<Record<number, boolean>>({});
 /** `ember` = black + orange · `pastel` = lavender + mint */
-const theme = ref<'ember' | 'pastel'>('pastel');
+const theme = ref<'ember' | 'pastel'>('ember');
 
 const trapArenaRef = ref<HTMLElement | null>(null);
 const noButtonRef = ref<HTMLButtonElement | null>(null);
@@ -96,7 +96,7 @@ const balloons = ref<WishBalloon[]>(
 );
 
 const pastelBalloonTints = ['#c9b8e8', '#9b7bb8', '#7a5f9a', '#a8d9b8', '#7eb89a'];
-const emberBalloonTints = ['#ffc078', '#ff9a3c', '#e8721a', '#ffb347', '#ffa05a'];
+const emberBalloonTints = ['#e8a05a', '#e87820', '#c45f10', '#e08a30', '#d97828'];
 
 watch(
   theme,
@@ -152,7 +152,7 @@ const particleOptions = computed<ISourceOptions>(() => ({
     color: {
       value:
         theme.value === 'ember' && screen.value !== 'cake'
-          ? ['#ffffff', '#ffc078', '#ff9a3c', '#e8721a']
+          ? ['#ffffff', '#e8a05a', '#e87820', '#c45f10']
           : ['#ffffff', '#e8dff5', '#c9b8e8', '#9b7bb8', '#a8d9b8'],
     },
     shape: { type: 'circle' },
@@ -179,7 +179,7 @@ function softConfetti(x = 0.5, y = 0.45) {
     spread: 64,
     origin: { x, y },
     colors: useEmber
-      ? ['#ffffff', '#ffc078', '#ff9a3c', '#e8721a', '#ffb347']
+      ? ['#ffffff', '#e8a05a', '#e87820', '#c45f10', '#e08a30']
       : ['#ffffff', '#e8dff5', '#c9b8e8', '#9b7bb8', '#a8d9b8', '#7eb89a', '#b8e6c8'],
     zIndex: 50,
   });
