@@ -71,6 +71,7 @@ const screen = ref<Screen>('intro');
 const introPhase = ref<'sealed' | 'opening' | 'ready'>('sealed');
 const envelopeOpen = ref(false);
 const isMuted = ref(false);
+const themesHidden = ref(false);
 const earlyPreview = ref(false);
 const now = ref(Date.now());
 const candlesLit = ref(true);
@@ -150,6 +151,8 @@ watch(
 let music: Howl | null = null;
 let musicTrackIndex = 0;
 let musicCutTimer: number | undefined;
+/** Prevent onend from double-advancing when we intentionally stop/cut a track */
+let musicSkipEnd = false;
 let typingToken = 0;
 
 const musicSrc = (file: string) =>
@@ -158,13 +161,16 @@ const musicSrc = (file: string) =>
     .map((part) => encodeURIComponent(part))
     .join('/')}`;
 
-/** Happy Birthday 5s first, then Anbe → Love Bug → Dheema (loops the last three) */
+/** HBD 10s → Remo → Anbe → Love Bug → Dheema (then loops from Remo) */
 const musicPlaylist: Array<{ file: string; maxMs?: number }> = [
-  { file: 'Happy Birthday Instrumental.mp3', maxMs: 5000 },
+  { file: 'Happy Birthday Instrumental.mp3', maxMs: 10000 },
+  { file: 'remo_movie_love_bgm.mp3' },
   { file: 'anbe_en_anbe.mp3' },
   { file: 'love_bug_remo.mp3' },
   { file: 'dheema_instrumental_bgm (1).mp3' },
 ];
+
+const MUSIC_LOOP_START = 1;
 
 const screenIndex = computed(() => screenOrder.indexOf(screen.value));
 const totalScreens = screenOrder.length;
@@ -376,7 +382,7 @@ function isInteractiveTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   return Boolean(
     target.closest(
-      'button, a, input, textarea, select, label, [role="button"], .cta, .nav-chip, .theme-ball, .theme-balls, .star, .balloon-slot, .photo-frame, .birthday-cake, .envelope, .no-btn, .yes-btn, .blow-btn',
+      'button, a, input, textarea, select, label, [role="button"], .cta, .nav-chip, .theme-ball, .theme-balls, .theme-toggle, .music-chip, .star, .balloon-slot, .photo-frame, .birthday-cake, .envelope, .no-btn, .yes-btn, .blow-btn',
     ),
   );
 }
@@ -428,9 +434,19 @@ function clearMusicCutTimer() {
 function stopCurrentMusic() {
   clearMusicCutTimer();
   if (!music) return;
+  musicSkipEnd = true;
+  music.off('end');
   music.stop();
   music.unload();
   music = null;
+}
+
+function nextMusicTrack() {
+  if (musicTrackIndex >= musicPlaylist.length - 1) {
+    playMusicTrack(MUSIC_LOOP_START);
+  } else {
+    playMusicTrack(musicTrackIndex + 1);
+  }
 }
 
 function playMusicTrack(index: number) {
@@ -440,22 +456,18 @@ function playMusicTrack(index: number) {
   if (!track) return;
 
   const targetVolume = isMuted.value ? 0 : 0.35;
+  musicSkipEnd = false;
   music = new Howl({
     src: [musicSrc(track.file)],
     html5: true,
     volume: 0,
     onend: () => {
-      // After Happy Birthday clip, continue; after last song, loop from Anbe (skip HBD)
-      if (musicTrackIndex >= musicPlaylist.length - 1) {
-        playMusicTrack(1);
-      } else {
-        playMusicTrack(musicTrackIndex + 1);
-      }
+      if (musicSkipEnd) return;
+      nextMusicTrack();
     },
     onloaderror: () => {
-      // Skip broken track
-      if (musicTrackIndex >= musicPlaylist.length - 1) playMusicTrack(1);
-      else playMusicTrack(musicTrackIndex + 1);
+      if (musicSkipEnd) return;
+      nextMusicTrack();
     },
   });
 
@@ -466,8 +478,18 @@ function playMusicTrack(index: number) {
   if (track.maxMs) {
     musicCutTimer = window.setTimeout(() => {
       if (!music) return;
-      music.fade(music.volume(), 0, 350);
-      window.setTimeout(() => playMusicTrack(musicTrackIndex + 1), 360);
+      musicSkipEnd = true;
+      const current = music;
+      current.fade(current.volume(), 0, 350);
+      window.setTimeout(() => {
+        if (music === current) {
+          current.off('end');
+          current.stop();
+          current.unload();
+          music = null;
+        }
+        nextMusicTrack();
+      }, 360);
     }, track.maxMs);
   }
 }
@@ -483,6 +505,10 @@ function toggleMusic() {
   const next = isMuted.value ? 0 : 0.35;
   const from = music.volume();
   music.fade(from, next, 400);
+}
+
+function toggleThemesHidden() {
+  themesHidden.value = !themesHidden.value;
 }
 
 function enterPreview() {
@@ -911,55 +937,81 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="theme-balls" role="group" aria-label="Theme colors">
+    <div class="theme-dock">
       <button
-        class="theme-ball theme-ball-ember"
+        class="theme-toggle"
         type="button"
-        :class="{ active: theme === 'ember' }"
-        aria-label="Black and orange theme"
-        title="Black & orange"
-        @click="setTheme('ember')"
-      ></button>
-      <button
-        class="theme-ball theme-ball-pastel"
-        type="button"
-        :class="{ active: theme === 'pastel' }"
-        aria-label="Lavender and mint theme"
-        title="Lavender & mint"
-        @click="setTheme('pastel')"
-      ></button>
-      <button
-        class="theme-ball theme-ball-blush"
-        type="button"
-        :class="{ active: theme === 'blush' }"
-        aria-label="White and baby pink theme"
-        title="White & baby pink"
-        @click="setTheme('blush')"
-      ></button>
-      <button
-        class="theme-ball theme-ball-noir"
-        type="button"
-        :class="{ active: theme === 'noir' }"
-        aria-label="Lavender and black theme"
-        title="Lavender & black"
-        @click="setTheme('noir')"
-      ></button>
-      <button
-        class="theme-ball theme-ball-midnight"
-        type="button"
-        :class="{ active: theme === 'midnight' }"
-        aria-label="Navy and gold theme"
-        title="Navy & gold"
-        @click="setTheme('midnight')"
-      ></button>
-      <button
-        class="theme-ball theme-ball-rose"
-        type="button"
-        :class="{ active: theme === 'rose' }"
-        aria-label="Cream and rose theme"
-        title="Cream & rose"
-        @click="setTheme('rose')"
-      ></button>
+        :aria-pressed="!themesHidden"
+        :aria-label="themesHidden ? 'Show color themes' : 'Hide color themes'"
+        :title="themesHidden ? 'Show colors' : 'Hide colors'"
+        @click="toggleThemesHidden"
+      >
+        <svg v-if="themesHidden" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M4 4l16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <circle cx="8" cy="10" r="3.2" fill="currentColor" opacity="0.9" />
+          <circle cx="15" cy="9" r="2.8" fill="currentColor" opacity="0.75" />
+          <circle cx="13" cy="15" r="3" fill="currentColor" opacity="0.85" />
+        </svg>
+      </button>
+
+      <div
+        v-show="!themesHidden"
+        class="theme-balls"
+        role="group"
+        aria-label="Theme colors"
+      >
+        <button
+          class="theme-ball theme-ball-ember"
+          type="button"
+          :class="{ active: theme === 'ember' }"
+          aria-label="Black and orange theme"
+          title="Black & orange"
+          @click="setTheme('ember')"
+        ></button>
+        <button
+          class="theme-ball theme-ball-pastel"
+          type="button"
+          :class="{ active: theme === 'pastel' }"
+          aria-label="Lavender and mint theme"
+          title="Lavender & mint"
+          @click="setTheme('pastel')"
+        ></button>
+        <button
+          class="theme-ball theme-ball-blush"
+          type="button"
+          :class="{ active: theme === 'blush' }"
+          aria-label="White and baby pink theme"
+          title="White & baby pink"
+          @click="setTheme('blush')"
+        ></button>
+        <button
+          class="theme-ball theme-ball-noir"
+          type="button"
+          :class="{ active: theme === 'noir' }"
+          aria-label="Lavender and black theme"
+          title="Lavender & black"
+          @click="setTheme('noir')"
+        ></button>
+        <button
+          class="theme-ball theme-ball-midnight"
+          type="button"
+          :class="{ active: theme === 'midnight' }"
+          aria-label="Navy and gold theme"
+          title="Navy & gold"
+          @click="setTheme('midnight')"
+        ></button>
+        <button
+          class="theme-ball theme-ball-rose"
+          type="button"
+          :class="{ active: theme === 'rose' }"
+          aria-label="Cream and rose theme"
+          title="Cream & rose"
+          @click="setTheme('rose')"
+        ></button>
+      </div>
     </div>
 
     <button
@@ -975,9 +1027,23 @@ onUnmounted(() => {
       v-if="screen !== 'intro' || introPhase === 'ready'"
       class="music-chip"
       type="button"
+      :aria-label="isMuted ? 'Unmute music' : 'Mute music'"
+      :title="isMuted ? 'Unmute' : 'Mute'"
       @click="toggleMusic"
     >
-      {{ isMuted ? 'Unmute' : 'Mute' }}
+      <!-- Speaker / mute icons -->
+      <svg v-if="!isMuted" class="music-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M4 9v6h3.2L12 19.5V4.5L7.2 9H4zm11.5 3a3.5 3.5 0 0 0-1.7-3v6a3.5 3.5 0 0 0 1.7-3zm-1.7-6.9v1.6a5.5 5.5 0 0 1 0 10.6v1.6a7.1 7.1 0 0 0 0-13.8z"
+        />
+      </svg>
+      <svg v-else class="music-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M4 9v6h3.2L12 19.5V4.5L7.2 9H4zm11.04-.96 1.27 1.27A3.45 3.45 0 0 1 17 12a3.5 3.5 0 0 1-.9 2.34l1.3 1.3A5.45 5.45 0 0 0 18.7 12a5.5 5.5 0 0 0-2.66-4.7zM12 4.5v1.7l6.9 6.9.9-.9L12 3.6zm7.8 13.1-1.4 1.4L4.2 4.8l1.4-1.4z"
+        />
+      </svg>
     </button>
 
     <p v-if="screen !== 'intro'" class="screen-meter">{{ screenIndex + 1 }} / {{ totalScreens }}</p>
