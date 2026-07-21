@@ -148,7 +148,23 @@ watch(
 );
 
 let music: Howl | null = null;
+let musicTrackIndex = 0;
+let musicCutTimer: number | undefined;
 let typingToken = 0;
+
+const musicSrc = (file: string) =>
+  `${import.meta.env.BASE_URL}music/${file
+    .split('/')
+    .map((part) => encodeURIComponent(part))
+    .join('/')}`;
+
+/** Happy Birthday 5s first, then Anbe → Love Bug → Dheema (loops the last three) */
+const musicPlaylist: Array<{ file: string; maxMs?: number }> = [
+  { file: 'Happy Birthday Instrumental.mp3', maxMs: 5000 },
+  { file: 'anbe_en_anbe.mp3' },
+  { file: 'love_bug_remo.mp3' },
+  { file: 'dheema_instrumental_bgm (1).mp3' },
+];
 
 const screenIndex = computed(() => screenOrder.indexOf(screen.value));
 const totalScreens = screenOrder.length;
@@ -402,23 +418,71 @@ function setTheme(next: ThemeId) {
   }
 }
 
+function clearMusicCutTimer() {
+  if (musicCutTimer) {
+    window.clearTimeout(musicCutTimer);
+    musicCutTimer = undefined;
+  }
+}
+
+function stopCurrentMusic() {
+  clearMusicCutTimer();
+  if (!music) return;
+  music.stop();
+  music.unload();
+  music = null;
+}
+
+function playMusicTrack(index: number) {
+  stopCurrentMusic();
+  musicTrackIndex = index;
+  const track = musicPlaylist[index];
+  if (!track) return;
+
+  const targetVolume = isMuted.value ? 0 : 0.35;
+  music = new Howl({
+    src: [musicSrc(track.file)],
+    html5: true,
+    volume: 0,
+    onend: () => {
+      // After Happy Birthday clip, continue; after last song, loop from Anbe (skip HBD)
+      if (musicTrackIndex >= musicPlaylist.length - 1) {
+        playMusicTrack(1);
+      } else {
+        playMusicTrack(musicTrackIndex + 1);
+      }
+    },
+    onloaderror: () => {
+      // Skip broken track
+      if (musicTrackIndex >= musicPlaylist.length - 1) playMusicTrack(1);
+      else playMusicTrack(musicTrackIndex + 1);
+    },
+  });
+
+  Howler.volume(0.8);
+  music.play();
+  music.fade(0, targetVolume, 900);
+
+  if (track.maxMs) {
+    musicCutTimer = window.setTimeout(() => {
+      if (!music) return;
+      music.fade(music.volume(), 0, 350);
+      window.setTimeout(() => playMusicTrack(musicTrackIndex + 1), 360);
+    }, track.maxMs);
+  }
+}
+
 function initMusic() {
   if (music) return;
-  music = new Howl({
-    src: ['https://assets.mixkit.co/music/preview/mixkit-sleepy-cat-135.mp3'],
-    loop: true,
-    volume: 0,
-    html5: true,
-  });
-  Howler.volume(0.75);
-  music.play();
-  music.fade(0, 0.3, 1400);
+  playMusicTrack(0);
 }
 
 function toggleMusic() {
   isMuted.value = !isMuted.value;
   if (!music) return;
-  music.fade(isMuted.value ? 0.3 : 0, isMuted.value ? 0 : 0.3, 400);
+  const next = isMuted.value ? 0 : 0.35;
+  const from = music.volume();
+  music.fade(from, next, 400);
 }
 
 function enterPreview() {
@@ -772,7 +836,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (countdownTimer) window.clearInterval(countdownTimer);
   stopFinaleCelebration();
-  music?.stop();
+  stopCurrentMusic();
   partyCannon = null;
   document.getElementById('hbd-sparkle-canvas')?.remove();
 });
