@@ -1114,7 +1114,12 @@ onUnmounted(() => {
           <div class="letter-card" aria-hidden="true">
             <p>Happy Birthday</p>
             <strong>{{ RECIPIENT_NAME }}</strong>
-            <span>something soft, made for you</span>
+            <span class="letter-note">
+              A birthday isn't just about growing older… It's a day to remember how many people you've made happy, and how beautifully your presence has changed their lives.
+            </span>
+            <span class="letter-note soft">
+              Always keep smiling, because the people around you will also smile if you smile.
+            </span>
           </div>
         </button>
 

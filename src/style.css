@@ -528,15 +528,15 @@ code {
 
 .letter-card {
   position: absolute;
-  left: 1.2rem;
-  right: 1.2rem;
-  top: 3.2rem;
+  left: 0.85rem;
+  right: 0.85rem;
+  top: 2.4rem;
   z-index: 2;
   display: grid;
-  gap: 0.2rem;
+  gap: 0.45rem;
   place-items: center;
-  min-height: 9.5rem;
-  padding: 1.2rem 1rem;
+  min-height: 12.5rem;
+  padding: 1.1rem 0.9rem 1.2rem;
   border-radius: 1rem;
   background: linear-gradient(180deg, var(--accent-soft), color-mix(in srgb, var(--bg) 40%, var(--ink)));
   border: 1px solid var(--stroke);
@@ -556,14 +556,25 @@ code {
 
 .letter-card strong {
   font-family: var(--display);
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 800;
   color: var(--ink);
 }
 
-.letter-card span {
+.letter-card .letter-note {
+  margin: 0;
+  max-width: 18rem;
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+  font-weight: 500;
+}
+
+.letter-card .letter-note.soft {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.74rem;
+  font-style: italic;
 }
 
 .envelope.open .seal {
