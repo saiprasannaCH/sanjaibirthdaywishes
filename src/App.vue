@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { ISourceOptions } from '@tsparticles/engine';
-import confetti from 'canvas-confetti';
+import confettiPkg from 'canvas-confetti';
+import type { CreateTypes, Options as ConfettiOptions } from 'canvas-confetti';
 import { gsap } from 'gsap';
 import { Howl, Howler } from 'howler';
 import LightArch from './components/LightArch.vue';
@@ -23,6 +24,9 @@ import {
   UNLOCK_DATE_LABEL,
   UNLOCK_TIME_LABEL,
 } from './config';
+
+const butterflySrc = (file: string) =>
+  `${import.meta.env.BASE_URL}butterflies/${file}?v=3`;
 
 /** Preview button only in local `npm run dev` */
 const SHOW_PREVIEW_ENTER = import.meta.env.DEV;
@@ -86,6 +90,14 @@ const photoBroken = ref<Record<number, boolean>>({});
 type ThemeId = 'ember' | 'pastel' | 'blush' | 'noir' | 'midnight' | 'rose';
 const theme = ref<ThemeId>('ember');
 const THEME_IDS: ThemeId[] = ['ember', 'pastel', 'blush', 'noir', 'midnight', 'rose'];
+
+const sceneButterflies = [
+  { id: 1, src: butterflySrc('butterfly-1.png'), x: -2, y: 8, size: 1.05, duration: 22, delay: 0, drift: 42 },
+  { id: 2, src: butterflySrc('butterfly-2.png'), x: 88, y: 12, size: 0.95, duration: 26, delay: 2.5, drift: -38 },
+  { id: 3, src: butterflySrc('butterfly-3.png'), x: -4, y: 42, size: 0.9, duration: 24, delay: 1.2, drift: 34 },
+  { id: 4, src: butterflySrc('butterfly-4.png'), x: 90, y: 48, size: 1, duration: 28, delay: 3.8, drift: -36 },
+  { id: 5, src: butterflySrc('butterfly-5.png'), x: 78, y: 28, size: 0.92, duration: 25, delay: 0.8, drift: 28 },
+] as const;
 
 const trapArenaRef = ref<HTMLElement | null>(null);
 const noButtonRef = ref<HTMLButtonElement | null>(null);
@@ -171,6 +183,9 @@ const countdown = computed(() => {
   };
 });
 
+const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+/** Soft floating sparkles on pages */
 const particleOptions = computed<ISourceOptions>(() => ({
   fullScreen: { enable: false },
   detectRetina: true,
@@ -180,29 +195,202 @@ const particleOptions = computed<ISourceOptions>(() => ({
     color: { value: particleColorsByTheme[activePalette.value] },
     shape: { type: 'circle' },
     opacity: {
-      value: { min: 0.15, max: 0.55 },
+      value: { min: 0.15, max: 0.5 },
       animation: { enable: true, speed: 0.45, sync: false },
     },
-    size: { value: { min: 1.5, max: 4 } },
+    size: { value: { min: 1.5, max: 3.5 } },
     move: {
       enable: true,
-      speed: { min: 0.1, max: 0.4 },
+      speed: { min: 0.1, max: 0.35 },
       direction: 'none',
       outModes: { default: 'out' },
     },
   },
 }));
 
-const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+/** Resolve canvas-confetti across CJS/ESM shapes */
+type ConfettiApi = CreateTypes & {
+  create?: (canvas?: HTMLCanvasElement, opts?: { resize?: boolean; useWorker?: boolean }) => CreateTypes;
+};
+
+const confettiBase = (
+  typeof confettiPkg === 'function'
+    ? confettiPkg
+    : (confettiPkg as { default: ConfettiApi }).default
+) as ConfettiApi;
+
+let partyCannon: CreateTypes | null = null;
+
+function getParty(): CreateTypes {
+  if (partyCannon) return partyCannon;
+  if (typeof document === 'undefined') return confettiBase;
+
+  let canvas = document.getElementById('hbd-sparkle-canvas') as HTMLCanvasElement | null;
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'hbd-sparkle-canvas';
+    canvas.setAttribute('aria-hidden', 'true');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    Object.assign(canvas.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100vw',
+      height: '100vh',
+      pointerEvents: 'none',
+      zIndex: '2147483646',
+    });
+    document.body.appendChild(canvas);
+    window.addEventListener(
+      'resize',
+      () => {
+        canvas!.width = window.innerWidth;
+        canvas!.height = window.innerHeight;
+      },
+      { passive: true },
+    );
+  }
+
+  // useWorker:false — workers were silently failing in this app
+  partyCannon = confettiBase.create
+    ? confettiBase.create(canvas, { resize: true, useWorker: false })
+    : confettiBase;
+  return partyCannon;
+}
+
+function shoot(opts: ConfettiOptions = {}) {
+  try {
+    getParty()({
+      disableForReducedMotion: false,
+      zIndex: 2147483646,
+      colors: confettiColorsByTheme[activePalette.value],
+      ...opts,
+    });
+  } catch {
+    try {
+      confettiBase({
+        disableForReducedMotion: false,
+        zIndex: 2147483646,
+        colors: confettiColorsByTheme[activePalette.value],
+        ...opts,
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
 function softConfetti(x = 0.5, y = 0.45) {
-  confetti({
-    particleCount: 48,
-    spread: 64,
+  shoot({
+    particleCount: 55,
+    spread: 70,
+    startVelocity: 32,
+    scalar: 0.95,
     origin: { x, y },
-    colors: confettiColorsByTheme[activePalette.value],
-    zIndex: 50,
   });
+}
+
+/** Welcome sparkle blast — first screen on open / refresh */
+function welcomeSprinkleBlast() {
+  shoot({
+    particleCount: 120,
+    spread: 100,
+    startVelocity: 48,
+    scalar: 1,
+    origin: { x: 0.5, y: 0.55 },
+    shapes: ['circle', 'square'],
+  });
+  shoot({
+    particleCount: 80,
+    angle: 60,
+    spread: 75,
+    startVelocity: 55,
+    origin: { x: 0, y: 0.7 },
+    shapes: ['circle', 'square'],
+  });
+  shoot({
+    particleCount: 80,
+    angle: 120,
+    spread: 75,
+    startVelocity: 55,
+    origin: { x: 1, y: 0.7 },
+    shapes: ['circle', 'square'],
+  });
+  window.setTimeout(() => {
+    shoot({
+      particleCount: 100,
+      spread: 120,
+      startVelocity: 42,
+      origin: { x: 0.5, y: 0.3 },
+      shapes: ['circle', 'square'],
+    });
+  }, 200);
+  window.setTimeout(() => {
+    shoot({
+      particleCount: 70,
+      spread: 90,
+      startVelocity: 36,
+      origin: { x: 0.25, y: 0.5 },
+      shapes: ['circle', 'square'],
+    });
+    shoot({
+      particleCount: 70,
+      spread: 90,
+      startVelocity: 36,
+      origin: { x: 0.75, y: 0.5 },
+      shapes: ['circle', 'square'],
+    });
+  }, 450);
+}
+
+interface TapBuddy {
+  id: number;
+  x: number;
+  y: number;
+  kind: 'teddy' | 'panda';
+  rotate: number;
+}
+
+const tapBuddies = ref<TapBuddy[]>([]);
+let tapBuddyId = 0;
+const TAP_BUDDY_KINDS: Array<'teddy' | 'panda'> = ['teddy', 'panda'];
+
+function isInteractiveTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      'button, a, input, textarea, select, label, [role="button"], .cta, .nav-chip, .theme-ball, .theme-balls, .star, .balloon-slot, .photo-frame, .birthday-cake, .envelope, .no-btn, .yes-btn, .blow-btn',
+    ),
+  );
+}
+
+function spawnTapBuddy(event: MouseEvent | TouchEvent) {
+  if (isInteractiveTarget(event.target)) return;
+
+  const point =
+    'touches' in event && event.touches[0]
+      ? { x: event.touches[0].clientX, y: event.touches[0].clientY }
+      : { x: (event as MouseEvent).clientX, y: (event as MouseEvent).clientY };
+
+  const id = ++tapBuddyId;
+  const kind = TAP_BUDDY_KINDS[id % TAP_BUDDY_KINDS.length];
+  tapBuddies.value = [
+    ...tapBuddies.value.slice(-12),
+    {
+      id,
+      x: point.x,
+      y: point.y,
+      kind,
+      rotate: -8 + Math.random() * 16,
+    },
+  ];
+
+  softConfetti(point.x / window.innerWidth, point.y / window.innerHeight);
+
+  window.setTimeout(() => {
+    tapBuddies.value = tapBuddies.value.filter((buddy) => buddy.id !== id);
+  }, 1800);
 }
 
 function setTheme(next: ThemeId) {
@@ -274,6 +462,7 @@ async function openEnvelope() {
 }
 
 async function goTo(next: Screen) {
+  if (next !== 'finale') stopFinaleCelebration();
   screen.value = next;
   await nextTick();
 
@@ -328,6 +517,9 @@ async function goTo(next: Screen) {
 
   if (next === 'letter') {
     letterText.value = '';
+    softConfetti(0.5, 0.4);
+    softConfetti(0.3, 0.55);
+    softConfetti(0.7, 0.55);
     void typeLetter();
     return;
   }
@@ -338,11 +530,11 @@ async function goTo(next: Screen) {
   }
 
   if (next === 'finale') {
-    softConfetti(0.5, 0.4);
+    startFinaleCelebration();
     gsap.fromTo(
-      '.finale-panel',
+      '.finale-glow-title, .finale-panel',
       { opacity: 0, y: 26, scale: 0.97 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.85, ease: 'power3.out' },
+      { opacity: 1, y: 0, scale: 1, duration: 0.85, stagger: 0.12, ease: 'power3.out' },
     );
   }
 }
@@ -486,6 +678,64 @@ async function blowCandles() {
   softConfetti(0.65, 0.5);
 }
 
+const CRACKER_TONES = ['gold', 'purple', 'cyan', 'blue', 'green'] as const;
+type CrackerTone = (typeof CRACKER_TONES)[number];
+
+interface SkyCracker {
+  id: number;
+  x: number;
+  y: number;
+  tone: CrackerTone;
+  size: number;
+}
+
+const skyCrackers = ref<SkyCracker[]>([]);
+let skyCrackerSeq = 0;
+let finaleCrackerTimer: number | undefined;
+
+function spawnSkyCracker(forced?: Partial<SkyCracker>) {
+  const id = ++skyCrackerSeq;
+  const tone = forced?.tone ?? CRACKER_TONES[id % CRACKER_TONES.length];
+  const cracker: SkyCracker = {
+    id,
+    x: forced?.x ?? 10 + Math.random() * 80,
+    y: forced?.y ?? 10 + Math.random() * 42,
+    tone,
+    size: forced?.size ?? 0.7 + Math.random() * 0.65,
+  };
+  skyCrackers.value = [...skyCrackers.value.slice(-10), cracker];
+  window.setTimeout(() => {
+    skyCrackers.value = skyCrackers.value.filter((item) => item.id !== id);
+  }, 2400);
+}
+
+function startFinaleCelebration() {
+  stopFinaleCelebration();
+  skyCrackers.value = [];
+
+  spawnSkyCracker({ x: 18, y: 28, tone: 'gold', size: 1.15 });
+  window.setTimeout(() => spawnSkyCracker({ x: 78, y: 24, tone: 'purple', size: 1.05 }), 280);
+  window.setTimeout(() => spawnSkyCracker({ x: 48, y: 36, tone: 'cyan', size: 1.2 }), 520);
+  window.setTimeout(() => spawnSkyCracker({ x: 32, y: 18, tone: 'blue', size: 0.85 }), 780);
+  window.setTimeout(() => spawnSkyCracker({ x: 65, y: 40, tone: 'green', size: 0.9 }), 980);
+
+  finaleCrackerTimer = window.setInterval(() => {
+    spawnSkyCracker();
+    window.setTimeout(() => spawnSkyCracker(), 180);
+    if (Math.random() > 0.35) {
+      window.setTimeout(() => spawnSkyCracker(), 360);
+    }
+  }, 850);
+}
+
+function stopFinaleCelebration() {
+  if (finaleCrackerTimer) {
+    window.clearInterval(finaleCrackerTimer);
+    finaleCrackerTimer = undefined;
+  }
+  skyCrackers.value = [];
+}
+
 onMounted(() => {
   applyUrlUnlock();
   try {
@@ -498,6 +748,14 @@ onMounted(() => {
   countdownTimer = window.setInterval(() => {
     now.value = Date.now();
   }, 1000);
+
+  // Blast sparkles right after open / refresh
+  void nextTick(() => {
+    window.requestAnimationFrame(() => {
+      welcomeSprinkleBlast();
+      window.setTimeout(welcomeSprinkleBlast, 600);
+    });
+  });
 
   gsap.fromTo(
     '.intro-title-line',
@@ -513,14 +771,21 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (countdownTimer) window.clearInterval(countdownTimer);
+  stopFinaleCelebration();
   music?.stop();
+  partyCannon = null;
+  document.getElementById('hbd-sparkle-canvas')?.remove();
 });
 </script>
 
 <template>
-  <div class="app-shell" :class="shellThemeClass">
+  <div
+    class="app-shell"
+    :class="shellThemeClass"
+    @click="spawnTapBuddy"
+  >
     <vue-particles
-      v-show="screen !== 'cake'"
+      v-show="screen !== 'cake' && screen !== 'finale'"
       id="birthday-particles"
       class="particles-layer"
       :options="particleOptions"
@@ -528,6 +793,59 @@ onUnmounted(() => {
     <div class="blush blush-a" aria-hidden="true"></div>
     <div class="blush blush-b" aria-hidden="true"></div>
     <div class="soft-grid" aria-hidden="true"></div>
+
+    <div class="tap-buddies" aria-hidden="true">
+      <div
+        v-for="buddy in tapBuddies"
+        :key="buddy.id"
+        class="tap-buddy"
+        :class="`tap-buddy--${buddy.kind}`"
+        :style="{
+          left: `${buddy.x}px`,
+          top: `${buddy.y}px`,
+          '--spin': `${buddy.rotate}deg`,
+        }"
+      >
+        <span class="tap-buddy-bubble">
+          <!-- Soft cartoon teddy -->
+          <svg v-if="buddy.kind === 'teddy'" class="tap-buddy-face" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="18" cy="18" r="12" fill="#e8b892" />
+            <circle cx="62" cy="18" r="12" fill="#e8b892" />
+            <circle cx="18" cy="18" r="7" fill="#f6d4b8" />
+            <circle cx="62" cy="18" r="7" fill="#f6d4b8" />
+            <circle cx="40" cy="44" r="28" fill="#f0c4a0" />
+            <ellipse cx="40" cy="52" rx="14" ry="11" fill="#f7d9c2" />
+            <circle cx="30" cy="40" r="4.2" fill="#5a3d2b" />
+            <circle cx="50" cy="40" r="4.2" fill="#5a3d2b" />
+            <circle cx="31.4" cy="38.6" r="1.4" fill="#fff" />
+            <circle cx="51.4" cy="38.6" r="1.4" fill="#fff" />
+            <ellipse cx="40" cy="49" rx="4.5" ry="3.2" fill="#c47a5a" />
+            <path d="M34 56 Q40 61 46 56" fill="none" stroke="#c47a5a" stroke-width="2" stroke-linecap="round" />
+            <circle cx="22" cy="48" r="5" fill="#ffb6c8" opacity="0.7" />
+            <circle cx="58" cy="48" r="5" fill="#ffb6c8" opacity="0.7" />
+            <path d="M36 28 Q40 24 44 28" fill="none" stroke="#e8a878" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          <!-- Soft cartoon panda -->
+          <svg v-else class="tap-buddy-face" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="18" r="13" fill="#2f2f2f" />
+            <circle cx="64" cy="18" r="13" fill="#2f2f2f" />
+            <circle cx="40" cy="44" r="28" fill="#ffffff" />
+            <ellipse cx="28" cy="40" rx="9" ry="11" fill="#2f2f2f" />
+            <ellipse cx="52" cy="40" rx="9" ry="11" fill="#2f2f2f" />
+            <circle cx="29" cy="40" r="3.6" fill="#ffffff" />
+            <circle cx="53" cy="40" r="3.6" fill="#ffffff" />
+            <circle cx="30" cy="39" r="1.5" fill="#2f2f2f" />
+            <circle cx="54" cy="39" r="1.5" fill="#2f2f2f" />
+            <ellipse cx="40" cy="50" rx="5" ry="3.5" fill="#2f2f2f" />
+            <path d="M34 57 Q40 62 46 57" fill="none" stroke="#2f2f2f" stroke-width="2" stroke-linecap="round" />
+            <circle cx="22" cy="52" r="5.5" fill="#ffb6c8" opacity="0.75" />
+            <circle cx="58" cy="52" r="5.5" fill="#ffb6c8" opacity="0.75" />
+          </svg>
+          <span class="tap-buddy-heart">♡</span>
+        </span>
+        <span class="tap-buddy-hbd">HBD {{ RECIPIENT_NAME }}</span>
+      </div>
+    </div>
 
     <div class="theme-balls" role="group" aria-label="Theme colors">
       <button
@@ -757,34 +1075,54 @@ onUnmounted(() => {
     </section>
 
     <!-- 5. PHOTOS -->
-    <section v-else-if="screen === 'photos'" class="screen">
+    <section v-else-if="screen === 'photos'" class="screen photos-screen">
       <header class="section-head">
         <p class="kicker">Photo reel · {{ activePhoto + 1 }}/{{ photoFrames.length }}</p>
         <h2>Frames that feel like home</h2>
-        <p class="lede compact">Swipe or tap the arrows · add pictures in <code>public/photos</code></p>
+        <p class="lede compact">Swipe or tap the arrows</p>
       </header>
 
-      <div class="photo-stage">
-        <button class="nav-chip" type="button" aria-label="Previous photo" @click.stop="prevPhoto">←</button>
+      <div class="photo-reel-stage">
+        <div class="memory-butterflies" aria-hidden="true">
+          <span
+            v-for="b in sceneButterflies"
+            :key="`photo-bf-${b.id}`"
+            class="butterfly"
+            :style="{
+              '--bx': `${b.x}%`,
+              '--by': `${b.y}%`,
+              '--bsize': String(b.size),
+              '--bdur': `${b.duration}s`,
+              '--bdelay': `${b.delay}s`,
+              '--bdrift': `${b.drift}px`,
+            }"
+          >
+            <img class="butterfly-img" :src="b.src" alt="" draggable="false" />
+          </span>
+        </div>
 
-        <figure class="polaroid">
-          <div class="photo-frame">
-            <img
-              v-if="!photoBroken[activePhoto]"
-              :key="activePhoto"
-              :src="photoFrames[activePhoto].src"
-              :alt="photoFrames[activePhoto].caption"
-              @error="onPhotoError(activePhoto)"
-            />
-            <div v-else class="photo-fallback">
-              <span>{{ photoFrames[activePhoto].fallback }}</span>
-              <p>Drop a photo here later</p>
+        <div class="photo-stage">
+          <button class="nav-chip" type="button" aria-label="Previous photo" @click.stop="prevPhoto">←</button>
+
+          <figure class="polaroid">
+            <div class="photo-frame">
+              <img
+                v-if="!photoBroken[activePhoto]"
+                :key="activePhoto"
+                :src="photoFrames[activePhoto].src"
+                :alt="photoFrames[activePhoto].caption"
+                @error="onPhotoError(activePhoto)"
+              />
+              <div v-else class="photo-fallback">
+                <span>{{ photoFrames[activePhoto].fallback }}</span>
+                <p>Drop a photo here later</p>
+              </div>
             </div>
-          </div>
-          <figcaption>{{ photoFrames[activePhoto].caption }}</figcaption>
-        </figure>
+            <figcaption>{{ photoFrames[activePhoto].caption }}</figcaption>
+          </figure>
 
-        <button class="nav-chip" type="button" aria-label="Next photo" @click.stop="nextPhoto">→</button>
+          <button class="nav-chip" type="button" aria-label="Next photo" @click.stop="nextPhoto">→</button>
+        </div>
       </div>
 
       <div class="photo-nav-mobile">
@@ -808,29 +1146,49 @@ onUnmounted(() => {
     </section>
 
     <!-- 6. MEMORIES -->
-    <section v-else-if="screen === 'memories'" class="screen">
+    <section v-else-if="screen === 'memories'" class="screen memories-screen">
       <header class="section-head">
         <p class="kicker">Soft pages · {{ memoryIndex + 1 }}/{{ writtenMemories.length }}</p>
         <h2>Memories I keep from our time</h2>
       </header>
 
-      <div class="memory-paper glass">
-        <article class="memory-entry">
-          <p class="memory-title">{{ writtenMemories[memoryIndex].title }}</p>
-          <p class="memory-text">{{ writtenMemories[memoryIndex].text }}</p>
-        </article>
+      <div class="memory-stage">
+        <div class="memory-butterflies" aria-hidden="true">
+          <span
+            v-for="b in sceneButterflies"
+            :key="`memory-bf-${b.id}`"
+            class="butterfly"
+            :style="{
+              '--bx': `${b.x}%`,
+              '--by': `${b.y}%`,
+              '--bsize': String(b.size),
+              '--bdur': `${b.duration}s`,
+              '--bdelay': `${b.delay}s`,
+              '--bdrift': `${b.drift}px`,
+            }"
+          >
+            <img class="butterfly-img" :src="b.src" alt="" draggable="false" />
+          </span>
+        </div>
 
-        <div class="write-pad">
-          <label for="memory-note">Add one more memory</label>
-          <textarea
-            id="memory-note"
-            v-model="customMemory"
-            rows="3"
-            maxlength="220"
-            placeholder="A moment you never want to forget…"
-          ></textarea>
-          <button class="ghost-btn" type="button" @click="saveMemoryNote">Save this memory</button>
-          <p v-if="savedCustomMemory" class="saved-note">“{{ savedCustomMemory }}”</p>
+        <div class="memory-paper glass">
+          <article class="memory-entry">
+            <p class="memory-title">{{ writtenMemories[memoryIndex].title }}</p>
+            <p class="memory-text">{{ writtenMemories[memoryIndex].text }}</p>
+          </article>
+
+          <div class="write-pad">
+            <label for="memory-note">Add one more memory</label>
+            <textarea
+              id="memory-note"
+              v-model="customMemory"
+              rows="3"
+              maxlength="220"
+              placeholder="A moment you never want to forget…"
+            ></textarea>
+            <button class="ghost-btn" type="button" @click="saveMemoryNote">Save this memory</button>
+            <p v-if="savedCustomMemory" class="saved-note">“{{ savedCustomMemory }}”</p>
+          </div>
         </div>
       </div>
 
@@ -921,9 +1279,37 @@ onUnmounted(() => {
 
     <!-- 10. FINALE -->
     <section v-else class="screen finale-screen">
+      <div class="finale-sky" aria-hidden="true">
+        <div class="finale-stars"></div>
+        <span class="finale-glow finale-glow-a"></span>
+        <span class="finale-glow finale-glow-b"></span>
+        <span class="finale-glow finale-glow-c"></span>
+
+        <div
+          v-for="cracker in skyCrackers"
+          :key="cracker.id"
+          class="sky-cracker"
+          :class="`sky-cracker--${cracker.tone}`"
+          :style="{
+            left: `${cracker.x}%`,
+            top: `${cracker.y}%`,
+            '--fw-size': String(cracker.size),
+          }"
+        >
+          <span class="sky-cracker-core"></span>
+          <span
+            v-for="ray in 28"
+            :key="ray"
+            class="sky-cracker-ray"
+            :style="{ '--a': `${(360 / 28) * ray}deg` }"
+          ></span>
+          <span class="sky-cracker-trail"></span>
+        </div>
+      </div>
+
+      <h2 class="finale-glow-title">Happy Birthday, {{ RECIPIENT_NAME }}</h2>
+
       <div class="finale-panel glass">
-        <p class="kicker">Last frame</p>
-        <h2>Happy Birthday, {{ RECIPIENT_NAME }}</h2>
         <p class="lede">
           Happy Birthday, {{ RECIPIENT_NAME }}! 🎉
 
@@ -936,7 +1322,7 @@ On your special day, I just want to say thank you for being exactly who you are.
 Keep smiling, keep being the amazing person you are, and may all your dreams come true.
 
 Happy Birthday once again, {{ RECIPIENT_NAME }} Have the most wonderful year ahead. 🤍         </p>
-        <p class="stamp">HBD {{ RECIPIENT_NAME }} ♡</p>
+        <p class="stamp finale-stamp">Celebrate you ♡</p>
         <div class="emoji-row" aria-hidden="true">
           <span>🎀</span><span>🌸</span><span>✨</span><span>🤍</span><span>💌</span>
         </div>

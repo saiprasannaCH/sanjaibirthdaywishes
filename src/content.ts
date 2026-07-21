@@ -1,39 +1,40 @@
 /** Edit this file to personalize Sanjai's birthday experience. */
 
 /** Public assets must respect Vite base (GitHub Pages lives under /sanjaibirthdaywishes/) */
-const asset = (path: string) =>
-  `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
+const asset = (path: string) => {
+  const clean = path.replace(/^\//, '');
+  const encoded = clean
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `${import.meta.env.BASE_URL}${encoded}`;
+};
 
 export const photoFrames = [
   {
-    src: asset('photos/1.jpg'),
-    caption: 'That day still makes me smile.',
-    fallback: 'Memory 01',
+    src: asset('photos/1st coincidence.jpeg'),
+    caption: 'Where I started stalking you and waiting to talk to you 😝',
+    fallback: '1st coincidence',
   },
   {
-    src: asset('photos/2.jpg'),
-    caption: 'A frame I keep coming back to.',
-    fallback: 'Memory 02',
+    src: asset('photos/Barista.jpeg'),
+    caption: 'My first coffee date in my life — and it was with you.',
+    fallback: 'Barista',
   },
   {
-    src: asset('photos/3.jpg'),
-    caption: 'Soft light, quieter joy.',
-    fallback: 'Memory 03',
+    src: asset('photos/2nd meet.jpeg'),
+    caption: 'Our second meet — already feeling a little more familiar.',
+    fallback: '2nd meet',
   },
   {
-    src: asset('photos/4.jpg'),
-    caption: 'Proof that ordinary moments can feel special.',
-    fallback: 'Memory 04',
+    src: asset('photos/Our 3rd meet.jpeg'),
+    caption: 'I keep thinking about your happiness — always trying to make you feel happy.',
+    fallback: 'Our 3rd meet',
   },
   {
-    src: asset('photos/5.jpg'),
-    caption: 'A little piece of our timeline.',
-    fallback: 'Memory 05',
-  },
-  {
-    src: asset('photos/6.jpg'),
-    caption: 'For the days that felt easy with you around.',
-    fallback: 'Memory 06',
+    src: asset('photos/qubaa.jpeg'),
+    caption: 'Qubaa — a soft day, a sweet memory, and you.',
+    fallback: 'Qubaa',
   },
 ];
 
